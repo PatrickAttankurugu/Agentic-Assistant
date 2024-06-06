@@ -1,0 +1,11 @@
+ 
+fastapi
+uvicorn
+python-dotenv
+pymongo
+bson
+langchain
+langchain-openai
+langchain-core
+langchain-community
+pillow
