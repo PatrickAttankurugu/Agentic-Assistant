@@ -3,13 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from datetime import timedelta
 import logging
-from dotenv import load_dotenv  # Add this line
-import os
-
-load_dotenv()  # Add this line to load environment variables
-
 from app.auth import authenticate_user, create_access_token, get_current_active_user, User, Token
 from app.routers import endpoints, conversations
+from app.middleware import setup_middleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -23,11 +19,11 @@ app = FastAPI()
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 fake_users_db = {
-    "user@example.com": {
-        "username": "user",
-        "full_name": "John Doe",
-        "email": "user@example.com",
-        "hashed_password": "$2b$12$KIXc....",  # Hashed password
+    "human@example.com": {
+        "username": "human",
+        "full_name": "Human Being",
+        "email": "human@example.com",
+        "hashed_password": "$argon2id$v=19$m=65536,t=3,p=4$Ls9jNx/L/63Ph/ZsRh8kDQ$rl8obcNCnHXYfnnOubXJ/Rw4o8dEC7chzWaZIpYMgQI",  # Correctly hashed password
         "disabled": False,
     }
 }
@@ -44,7 +40,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -70,3 +66,5 @@ Instrumentator().instrument(app).expose(app)
 
 app.include_router(endpoints.router)
 app.include_router(conversations.router)
+
+setup_middleware(app)

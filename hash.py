@@ -1,13 +1,13 @@
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
 
-# Initialize the password context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Initialize the password hasher
+ph = PasswordHasher()
 
 # Password to hash
 password = "569569"  # Replace with the password you want to hash
 
 # Generate the hash
-hashed_password = pwd_context.hash(password)
+hashed_password = ph.hash(password)
 
 # Print the hashed password
 print(hashed_password)

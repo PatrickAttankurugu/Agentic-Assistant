@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, status
@@ -13,11 +13,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Mocked database for users
 fake_users_db = {
-    "user@example.com": {
-        "username": "user",
-        "full_name": "John Doe",
-        "email": "user@example.com",
-        "hashed_password": "$2b$12$KIXc.yEvv9kC4.KffKd2eOVQkPa4/L4T61XWyM2GksJDPx2Zb2FY6",  # Correctly hashed password
+    "human@example.com": {
+        "username": "human",
+        "full_name": "Human Being",
+        "email": "human@example.com",
+        "hashed_password": "$argon2id$v=19$m=65536,t=3,p=4$Ls9jNx/L/63Ph/ZsRh8kDQ$rl8obcNCnHXYfnnOubXJ/Rw4o8dEC7chzWaZIpYMgQI",  # Correctly hashed password
         "disabled": False,
     }
 }
@@ -38,7 +38,7 @@ class User(BaseModel):
 class UserInDB(User):
     hashed_password: str
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_password(plain_password, hashed_password):
@@ -48,9 +48,13 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def get_user(db, username: str):
+    print(f"DEBUG: Looking for user {username}")
     if username in db:
         user_dict = db[username]
+        print(f"DEBUG: Found user {user_dict}")
         return UserInDB(**user_dict)
+    print("DEBUG: User not found")
+    return None
 
 def authenticate_user(fake_db, username: str, password: str):
     user = get_user(fake_db, username)
@@ -63,11 +67,12 @@ def authenticate_user(fake_db, username: str, password: str):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    print(f"DEBUG: Created token {encoded_jwt}")
     return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -78,13 +83,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        print(f"DEBUG: JWT payload {payload}")
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
+        token_data = TokenData(username=email)
+    except JWTError as e:
+        print(f"DEBUG: JWT decode error: {e}")
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = get_user(fake_users_db, token_data.username)
+    print(f"DEBUG: Retrieved user {user}")
     if user is None:
         raise credentials_exception
     return user
