@@ -1,7 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List
 import os
+from dotenv import load_dotenv  # Add this line
+
+load_dotenv()  # Add this line to load environment variables
 
 from langchain_openai import OpenAI
 from langchain_community.vectorstores import FAISS
@@ -20,7 +23,11 @@ class Message(BaseModel):
     message: str
 
 # LangChain setup
-llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="text-davinci-003")
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise ValueError("Did not find openai_api_key, please add an environment variable `OPENAI_API_KEY` which contains it")
+
+llm = OpenAI(api_key=openai_api_key, model="text-davinci-003")
 memory = ConversationBufferMemory()
 
 template = PromptTemplate(
@@ -64,7 +71,11 @@ def send_message(message: Message):
     memory_store[user_id].append(f"User: {message.message}")
     
     # Generate a response using LangChain
-    response = generate_response(message.message, user_id)
+    try:
+        response = generate_response(message.message, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
     memory_store[user_id].append(f"Bot: {response}")
     return {"response": response}
 

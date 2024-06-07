@@ -55,6 +55,13 @@ def search_and_rank(query, k=5):
     else:
         return []
 
+# Add this function to fetch user details from the fake database
+def get_user_by_username(fake_users_db, username: str):
+    user = fake_users_db.get(username)
+    if user:
+        return user
+    return None
+
 # Example usage
 if __name__ == "__main__":
     query = "Explain the benefits of agentic AI design patterns"
